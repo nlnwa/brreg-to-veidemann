@@ -26,17 +26,29 @@ const StreamArray = require('stream-json/streamers/StreamArray');
 const path = require('path');
 const fs = require('fs');
 const {createImportList} = require('./veidemann_import');
+const inputDir = './input';
+const outputDir = './output';
 
-const source = './input/brregOrganizations.json';
-const brregData = './input/updated.json';
-const output = './output/brreg_import.json';
+if (!fs.existsSync(inputDir)) {
+    fs.mkdirSync(inputDir);
+}
+
+if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir);
+}
+
+
+const source = 'brregOrganizations.json';
+const brregData = 'updated.json';
+const output = 'brreg_import.json';
+const nonMatchUrl = 'nonmatchedurls.txt';
 
 function processBrreg() {
     const inputStream = StreamArray.withParser();
 
-    fs.createReadStream(path.join(__dirname, source)).pipe(inputStream.input);
-    const outputStream = fs.createWriteStream(brregData);
-    const errorStream = fs.createWriteStream('./output/failedurl.txt');
+    fs.createReadStream(path.join(__dirname, inputDir, source)).pipe(inputStream.input);
+    const outputStream = fs.createWriteStream(path.join(__dirname, outputDir, brregData));
+    const errorStream = fs.createWriteStream(path.join(__dirname, outputDir, nonMatchUrl));
 
     const t0 = Date.now();
 
@@ -49,10 +61,15 @@ function processBrreg() {
     let validWebPages = 0;
     let validWebPageNotFacebook = 0;
     let urlFacebook = 0;
+    let lastPrint = 0;
 
     inputStream.on('data', ({key, value}) => {
         const separator = "\n";
         entitiesChecked++;
+        if (lastPrint + 10000 === entitiesChecked) {
+            lastPrint = entitiesChecked;
+            console.log('Har sjekket ', lastPrint, ' entiteter fra brreg');
+        }
 
         if (value.hjemmeside) {
             nonEmptyWebPageFields++;
@@ -87,9 +104,9 @@ function processBrreg() {
         console.log('Operasjonen tok: ', duration, ' sekunder å gjennomføre');
         console.log('Starter opprettingen av liste til bruk med veidemannctl');
 
-        createImportList(path.join(__dirname, brregData), output);
-    });
+        createImportList(path.join(__dirname, outputDir, brregData),path.join(__dirname, outputDir, output));
+   });
 }
 
 processBrreg();
-//createImportList(path.join(__dirname, brregData), importList);
+

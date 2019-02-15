@@ -48,7 +48,13 @@ function createImportList(input, output) {
 
     inputStream.on('data', ({key, value}) => {
         count += 1;
-        outputStream.write(JSON.stringify(transform(value)) + '\n');
+        const veidemannSeed = transform(value);
+        if (veidemannSeed.entityName && veidemannSeed.uri) {
+            outputStream.write(JSON.stringify(veidemannSeed) + '\n');
+        } else {
+            errorStream.write(JSON.stringify(veidemannSeed) + '\n');
+        }
+
     });
 
     inputStream.on('end', () => {
@@ -70,13 +76,25 @@ function createImportList(input, output) {
      */
     function transform(value) {
         return {
-            entityName: value.navn ? value.navn.toLowerCase() : null,
+            entityName: getEntityName(value.navn.toLowerCase()),
             uri: getUri(value.hjemmeside),
             entityLabel: getEntityLabel(value),
             seedLabel: getSeedLabel(),
             entityDescription: value.organisasjonsform ? value.organisasjonsform.beskrivelse : null,
             seedDescription: ''
         }
+    }
+
+
+    function getEntityName(nameString) {
+        let entityName = nameString.charAt(0).toUpperCase() + nameString.slice(1);
+        const asRegExp = /\sas$|\sas\s/gm;
+
+        const match = asRegExp.exec(entityName);
+        if (match) {
+            entityName = entityName.replace(asRegExp, ' AS');
+        }
+        return entityName;
     }
 
 
@@ -90,7 +108,7 @@ function createImportList(input, output) {
 
         labels.push({
             "key": "source",
-            "value": "Brreg"
+            "value": "brreg"
         });
 
         if (brreg.naeringskode1 !== undefined) {
